@@ -1,0 +1,69 @@
+--1) Проанализировать какие запросы могут выполняться наиболее часто в процессе работы приложения и добавить необходимые индексы.
+
+mysql> CREATE INDEX users_last_name ON users(last_name);
+Query OK, 0 rows affected (0,06 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX profiles_birthday ON profiles(birthday);
+Query OK, 0 rows affected (0,02 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX messages_created_at ON messages(created_at);
+Query OK, 0 rows affected (0,02 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX profiles_country ON profiles(country);
+Query OK, 0 rows affected (0,02 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+
+mysql> CREATE INDEX posts_created_at ON posts(created_at);
+Query OK, 0 rows affected (0,03 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX messages_to_user_id_created_at ON messages(to_user_id, created_at);
+Query OK, 0 rows affected (0,03 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX posts_to_user_id_created_at ON posts(user_id, created_at);
+Query OK, 0 rows affected (0,05 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+
+--2) Задание на оконные функции
+Построить запрос, который будет выводить следующие столбцы:
+имя группы
+среднее количество пользователей в группах
+самый молодой пользователь в группе
+самый старший пользователь в группе
+общее количество пользователей в группе
+всего пользователей в системе
+отношение в процентах (общее количество пользователей в группе / всего пользователей в системе) * 100
+
+
+mysql> SELECT DISTINCT communities.name, 
+    -> (SELECT COUNT(*) from users) / (SELECT COUNT(*) from communities) AS average_users_in_group,
+    -> MAX(profiles.birthday) OVER w AS youngest_in_group,
+    -> MIN(profiles.birthday) OVER w AS oldest_in_group,
+    -> COUNT(users.id) OVER w AS total_users_in_group,
+    -> (SELECT COUNT(*) from users) as total_users,
+    -> COUNT(users.id) OVER(PARTITION BY communities.id) / (SELECT COUNT(*) from users) * 100 AS users_percentage_in_group
+    -> FROM communities
+    -> JOIN communities_users ON community_id = communities.id 
+    -> JOIN users ON user_id = users.id
+    -> JOIN profiles ON profiles.user_id = users.id
+    -> WINDOW w AS (PARTITION BY communities.id);
++------------+------------------------+-------------------+-----------------+----------------------+-------------+---------------------------+
+| name       | average_users_in_group | youngest_in_group | oldest_in_group | total_users_in_group | total_users | users_percentage_in_group |
++------------+------------------------+-------------------+-----------------+----------------------+-------------+---------------------------+
+| Kids       |                12.5000 | 2014-11-01        | 1971-05-01      |                   13 |         100 |                   13.0000 |
+| Politics   |                12.5000 | 2018-11-11        | 1973-08-09      |                   13 |         100 |                   13.0000 |
+| Pets       |                12.5000 | 2018-09-09        | 1972-10-30      |                   13 |         100 |                   13.0000 |
+| Dancing    |                12.5000 | 2011-07-28        | 1971-12-19      |                   13 |         100 |                   13.0000 |
+| Apocalypse |                12.5000 | 2018-12-28        | 1975-01-01      |                   12 |         100 |                   12.0000 |
+| Music      |                12.5000 | 2007-05-03        | 1970-01-23      |                   12 |         100 |                   12.0000 |
+| Football   |                12.5000 | 2017-07-28        | 1973-11-10      |                   12 |         100 |                   12.0000 |
+| Basketball |                12.5000 | 2018-11-20        | 1971-09-18      |                   12 |         100 |                   12.0000 |
++------------+------------------------+-------------------+-----------------+----------------------+-------------+---------------------------+
+8 rows in set (0,13 sec)
+
